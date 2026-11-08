@@ -194,23 +194,3 @@ Key decisions and trade-offs
 3. H2 vs. PostgreSQL. PostgreSQL is better for real use, but I wanted a reviewer to be able to run the project with one command and no extra setup. I chose H2 as the default and kept PostgreSQL available through Docker Compose. The trade-off is that H2 doesn't behave exactly like PostgreSQL, so some database issues might not show up in the default setup.
 
 4. Service charge. The brief defines the service charge as a percentage of total expenses, but it doesn't say who pays it or who receives it. If I added it to someone's debt, the settlement would no longer add up. So it is reported separately in the settlement response and is not included in the transfers. The trade-off is that the group has to handle the service charge outside the transfer list.
-
-
-### Testing
-
-- `SettlementCalculatorTest` covers the core logic: hand-written scenarios, including one where naive greedy needs an extra transfer, plus 2,000 randomised groups. For every case it asserts that (1) executing the transfers brings every balance to exactly zero, (2) every transfer is positive and between two different people, and (3) the transfer count equals a **brute-force optimum**.
-- `SplitCalculatorTest` covers all four strategies, the odd-cent rule and the validation rules.
-- `ServiceChargeCalculatorTest` covers the worked example from the brief (`johndoe47` → 0), case-insensitivity and rounding.
-- `ConcurrencyAndCachingTest` fires 8 threads at once and checks three things: only one "Dave" is created, only one void succeeds, and concurrent expenses plus payments are all counted with the ledger still balancing to zero. It also checks that a write evicts only its own group's cached settlement.
-- `SettleUpApiIntegrationTest` runs a full trip through HTTP, JSON and H2: expenses, settlement, partial payments to fully settled, voiding, the category summary, and the 400/404/422 paths.
-
-I tested the calculation logic most heavily because a mistake there means real people pay the wrong amounts. The controllers are thin and are covered by the integration test.
-
-### Possible next steps
-
-- Real persistence (PostgreSQL plus Flyway migrations)
-- Multi-currency groups with FX snapshots
-- Authentication with groups owned by users
-- Pagination on the list endpoints
-
----

@@ -107,8 +107,8 @@ curl -s localhost:8080/api/groups/1/settlement
 {
   "group_id": 1, "currency": "USD",
   "total_expenses": "514.00",
-  "service_charge_pct": 7,
-  "service_charge_amount": "35.98",
+  "service_charge_pct": 4,
+  "service_charge_amount": "20.56",
   "settled": false, "transaction_count": 2,
   "balances": [
     {"participant_id": 1, "name": "Alice", "paid": "390.00", "share": "150.34",

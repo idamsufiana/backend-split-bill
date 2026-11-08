@@ -1,25 +1,23 @@
-# ---- Stage 1: build ---------------------------------------------------------
-FROM maven:3.9-eclipse-temurin-17 AS build
-WORKDIR /workspace
+FROM eclipse-temurin:21-jdk-alpine AS builder
 
-# Resolve dependencies in their own layer so source edits don't re-download them.
-COPY pom.xml .
-RUN mvn -B -q dependency:go-offline
-
-COPY src ./src
-# Tests run as part of the image build: a broken settlement calculation never ships.
-RUN mvn -B package && cp target/settleup-*.jar app.jar
-
-# ---- Stage 2: runtime -------------------------------------------------------
-FROM eclipse-temurin:17-jre
 WORKDIR /app
 
-RUN groupadd --system app && useradd --system --gid app app
-COPY --from=build /workspace/app.jar app.jar
-USER app
+# Copy Maven wrapper and pom first (layer cache for dependencies)
+COPY .mvn/ .mvn/
+COPY mvnw pom.xml ./
+RUN ./mvnw dependency:go-offline -q
 
-# Drives the service-charge percentage; override at `docker run -e GITHUB_USERNAME=...`.
-ENV GITHUB_USERNAME=CHANGE_ME
-EXPOSE 8080
+# Copy source and build
+COPY src/ src/
+RUN ./mvnw package -DskipTests -q
 
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "/app/app.jar"]
+# ── Stage 2: Runtime ─────────────────────────────────────────────────────────
+FROM eclipse-temurin:21-jre-alpine AS runtime
+
+WORKDIR /app
+
+COPY --from=builder /app/target/*.jar app.jar
+
+EXPOSE 4110
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

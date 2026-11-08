@@ -1,0 +1,348 @@
+{
+  "info": {
+    "name": "SettleUp API",
+    "description": "Contoh lengkap skenario liburan Alice, Bob, Carol.\n\nCara pakai: jalankan aplikasi (http://localhost:8080), lalu klik kanan collection → Run collection, atau jalankan request satu per satu sesuai urutan. Request 'Buat grup' otomatis menyimpan groupId, aliceId, bobId, carolId ke variabel collection, jadi request berikutnya langsung pakai ID yang benar.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "groupId", "value": "" },
+    { "key": "aliceId", "value": "" },
+    { "key": "bobId", "value": "" },
+    { "key": "carolId", "value": "" },
+    { "key": "dinnerId", "value": "" },
+    { "key": "souvenirsId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Grup",
+      "item": [
+        {
+          "name": "Buat grup",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "const g = pm.response.json();",
+            "pm.collectionVariables.set('groupId', g.id);",
+            "pm.collectionVariables.set('aliceId', g.participants[0].id);",
+            "pm.collectionVariables.set('bobId', g.participants[1].id);",
+            "pm.collectionVariables.set('carolId', g.participants[2].id);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"name\": \"Liburan Bandung\",\n  \"currency\": \"USD\",\n  \"participants\": [\"Alice\", \"Bob\", \"Carol\"]\n}" },
+            "url": "{{baseUrl}}/api/groups"
+          }
+        },
+        {
+          "name": "Lihat semua grup",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/groups" }
+        },
+        {
+          "name": "Lihat satu grup",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('3 anggota', () => pm.expect(pm.response.json().participants).to.have.length(3));"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/groups/{{groupId}}" }
+        }
+      ]
+    },
+    {
+      "name": "2. Pengeluaran",
+      "item": [
+        {
+          "name": "Makan malam - rata bertiga (EQUAL)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "const e = pm.response.json();",
+            "pm.collectionVariables.set('dinnerId', e.id);",
+            "pm.test('100 dibagi 3 = 33.34 / 33.33 / 33.33', () => {",
+            "  pm.expect(e.shares.map(s => s.amount)).to.eql(['33.34', '33.33', '33.33']);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"description\": \"Makan malam\",\n  \"amount\": \"100.00\",\n  \"paid_by\": {{bobId}},\n  \"category\": \"FOOD\"\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses"
+          }
+        },
+        {
+          "name": "Taksi - rata untuk Alice & Carol saja (EQUAL sebagian)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "pm.test('masing-masing 12.00', () => pm.expect(pm.response.json().shares.map(s => s.amount)).to.eql(['12.00', '12.00']));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"description\": \"Taksi\",\n  \"amount\": \"24.00\",\n  \"paid_by\": {{carolId}},\n  \"category\": \"TRANSPORT\",\n  \"allocations\": [\n    { \"participant_id\": {{aliceId}} },\n    { \"participant_id\": {{carolId}} }\n  ]\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses"
+          }
+        },
+        {
+          "name": "Hotel - bobot jumlah malam 1:2:2 (SHARES)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "pm.test('60 / 120 / 120', () => pm.expect(pm.response.json().shares.map(s => s.amount)).to.eql(['60.00', '120.00', '120.00']));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"description\": \"Hotel\",\n  \"amount\": \"300.00\",\n  \"paid_by\": {{aliceId}},\n  \"category\": \"ACCOMMODATION\",\n  \"split_type\": \"SHARES\",\n  \"incurred_on\": \"2026-11-01\",\n  \"allocations\": [\n    { \"participant_id\": {{aliceId}}, \"value\": 1 },\n    { \"participant_id\": {{bobId}},   \"value\": 2 },\n    { \"participant_id\": {{carolId}}, \"value\": 2 }\n  ]\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses"
+          }
+        },
+        {
+          "name": "Sewa mobil - persen 50/25/25 (PERCENTAGE)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "pm.test('45 / 22.50 / 22.50', () => pm.expect(pm.response.json().shares.map(s => s.amount)).to.eql(['45.00', '22.50', '22.50']));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"description\": \"Sewa mobil\",\n  \"amount\": \"90.00\",\n  \"paid_by\": {{aliceId}},\n  \"category\": \"TRANSPORT\",\n  \"split_type\": \"PERCENTAGE\",\n  \"allocations\": [\n    { \"participant_id\": {{aliceId}}, \"value\": 50 },\n    { \"participant_id\": {{bobId}},   \"value\": 25 },\n    { \"participant_id\": {{carolId}}, \"value\": 25 }\n  ]\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses"
+          }
+        },
+        {
+          "name": "Oleh-oleh - nominal pasti (EXACT)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('souvenirsId', pm.response.json().id);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"description\": \"Oleh-oleh\",\n  \"amount\": \"45.50\",\n  \"paid_by\": {{carolId}},\n  \"category\": \"OTHER\",\n  \"split_type\": \"EXACT\",\n  \"allocations\": [\n    { \"participant_id\": {{aliceId}}, \"value\": \"10.00\" },\n    { \"participant_id\": {{carolId}}, \"value\": \"35.50\" }\n  ]\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses"
+          }
+        },
+        {
+          "name": "Lihat semua pengeluaran",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('5 pengeluaran', () => pm.expect(pm.response.json()).to.have.length(5));"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses" }
+        },
+        {
+          "name": "Filter per kategori (TRANSPORT)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('2 pengeluaran transport', () => pm.expect(pm.response.json()).to.have.length(2));"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses?category=TRANSPORT" }
+        },
+        {
+          "name": "Lihat satu pengeluaran",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses/{{dinnerId}}" }
+        },
+        {
+          "name": "Batalkan pengeluaran oleh-oleh (void)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+          ] } }],
+          "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses/{{souvenirsId}}" }
+        },
+        {
+          "name": "Lihat termasuk yang dibatalkan (audit)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const voided = pm.response.json().filter(e => e.voided_at);",
+            "pm.test('oleh-oleh masih tercatat dengan voided_at', () => pm.expect(voided).to.have.length(1));"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses?include_voided=true" }
+        }
+      ]
+    },
+    {
+      "name": "3. Settlement & pembayaran",
+      "item": [
+        {
+          "name": "Settlement (siapa bayar ke siapa)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const s = pm.response.json();",
+            "pm.test('total pengeluaran 514.00', () => pm.expect(s.total_expenses).to.eql('514.00'));",
+            "pm.test('ada service_charge_pct & service_charge_amount', () => {",
+            "  pm.expect(s).to.have.property('service_charge_pct');",
+            "  pm.expect(s).to.have.property('service_charge_amount');",
+            "});",
+            "pm.test('saldo: Alice +239.66, Bob -75.83, Carol -163.83', () => {",
+            "  pm.expect(s.balances.map(b => b.net_balance)).to.eql(['239.66', '-75.83', '-163.83']);",
+            "});",
+            "pm.test('2 transfer: Bob→Alice 75.83, Carol→Alice 163.83', () => {",
+            "  pm.expect(s.transactions.map(t => `${t.from.name}->${t.to.name} ${t.amount}`))",
+            "    .to.eql(['Bob->Alice 75.83', 'Carol->Alice 163.83']);",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/groups/{{groupId}}/settlement" }
+        },
+        {
+          "name": "Catat pembayaran: Carol → Alice 163.83",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"from_participant_id\": {{carolId}},\n  \"to_participant_id\": {{aliceId}},\n  \"amount\": \"163.83\",\n  \"note\": \"transfer bank\"\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/payments"
+          }
+        },
+        {
+          "name": "Catat pembayaran sebagian: Bob → Alice 50.00",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"from_participant_id\": {{bobId}},\n  \"to_participant_id\": {{aliceId}},\n  \"amount\": \"50.00\",\n  \"note\": \"cicilan pertama\"\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/payments"
+          }
+        },
+        {
+          "name": "Lihat semua pembayaran",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/groups/{{groupId}}/payments" }
+        },
+        {
+          "name": "Settlement setelah pembayaran (sisa Bob 25.83)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const s = pm.response.json();",
+            "pm.test('tinggal 1 transfer: Bob→Alice 25.83', () => {",
+            "  pm.expect(s.transactions).to.have.length(1);",
+            "  pm.expect(s.transactions[0].from.name).to.eql('Bob');",
+            "  pm.expect(s.transactions[0].amount).to.eql('25.83');",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/groups/{{groupId}}/settlement" }
+        },
+        {
+          "name": "Ringkasan per kategori",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/groups/{{groupId}}/summary/categories" }
+        }
+      ]
+    },
+    {
+      "name": "4. Contoh error",
+      "item": [
+        {
+          "name": "422 - persen tidak 100",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('422', () => pm.response.to.have.status(422));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"description\": \"Salah persen\",\n  \"amount\": \"10.00\",\n  \"paid_by\": {{aliceId}},\n  \"split_type\": \"PERCENTAGE\",\n  \"allocations\": [\n    { \"participant_id\": {{aliceId}}, \"value\": 60 },\n    { \"participant_id\": {{bobId}},   \"value\": 30 }\n  ]\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses"
+          }
+        },
+        {
+          "name": "422 - nominal pasti tidak sama dengan total",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('422', () => pm.response.to.have.status(422));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"description\": \"Kurang 1 sen\",\n  \"amount\": \"30.00\",\n  \"paid_by\": {{aliceId}},\n  \"split_type\": \"EXACT\",\n  \"allocations\": [\n    { \"participant_id\": {{aliceId}}, \"value\": \"10.00\" },\n    { \"participant_id\": {{bobId}},   \"value\": \"19.99\" }\n  ]\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses"
+          }
+        },
+        {
+          "name": "422 - lebih dari 2 desimal (10.005)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('422', () => pm.response.to.have.status(422));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"description\": \"Sub-sen\",\n  \"amount\": \"10.005\",\n  \"paid_by\": {{aliceId}}\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses"
+          }
+        },
+        {
+          "name": "422 - bayar ke diri sendiri",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('422', () => pm.response.to.have.status(422));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"from_participant_id\": {{bobId}},\n  \"to_participant_id\": {{bobId}},\n  \"amount\": \"5.00\"\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/payments"
+          }
+        },
+        {
+          "name": "400 - field wajib kosong",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('400', () => pm.response.to.have.status(400));",
+            "pm.test('menyebut description & paid_by', () => {",
+            "  const errors = pm.response.json().errors;",
+            "  pm.expect(errors).to.have.property('description');",
+            "  pm.expect(errors).to.have.property('paid_by');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"amount\": \"10.00\"\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/expenses"
+          }
+        },
+        {
+          "name": "404 - grup tidak ada",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('404', () => pm.response.to.have.status(404));"
+          ] } }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/groups/999999/settlement" }
+        }
+      ]
+    },
+    {
+      "name": "5. Lainnya",
+      "item": [
+        {
+          "name": "Tambah anggota baru (Dave)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"name\": \"Dave\"\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/participants"
+          }
+        },
+        {
+          "name": "422 - nama anggota duplikat",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('422', () => pm.response.to.have.status(422));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"name\": \"alice\"\n}" },
+            "url": "{{baseUrl}}/api/groups/{{groupId}}/participants"
+          }
+        }
+      ]
+    }
+  ]
+}

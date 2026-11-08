@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -54,7 +55,7 @@ public class ExpenseService {
                 .toList();
 
         Map<Long, Participant> members = group.getParticipants().stream()
-                .collect(Collectors.toMap(Participant::getId, Function.identity()));
+                .collect(Collectors.toMap(Participant::getId, Function.identity(), (a, b) -> a, LinkedHashMap::new));
         Map<Long, BigDecimal> owed = SplitCalculator.calculate(splitType, amount, scale, members.keySet(), inputs);
         Map<Long, BigDecimal> requested = inputs.stream()
                 .filter(i -> i.value() != null && splitType != SplitType.EQUAL)

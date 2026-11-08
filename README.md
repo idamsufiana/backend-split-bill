@@ -199,9 +199,3 @@ I tested the calculation logic most heavily because a mistake there means real p
 - Pagination on the list endpoints
 
 ---
-
-## Submission question
-
-> *What was the hardest design decision you made while building this, and what trade-off did you accept?*
-
-The hardest decision was what "the fairest way to settle up" should mean: keep the real debts (Carol pays Bob back for the dinner Bob bought), or net everything into the fewest possible transfers. I chose the fewest transfers, because that is what the person organising the settle-up actually feels, and I accepted that a suggested payment can now connect two people who never shared an expense. To make up for that, every settlement also returns each person's full breakdown (paid, share, payments sent and received), so anyone can see why they owe what they owe. The choice brought a second trade-off: finding the true minimum is NP-hard, so I compute it exactly with a subset DP for up to 16 people and fall back to a greedy heuristic above that. That is more complex than greedy-only, so the tests check the result against a brute-force optimum.

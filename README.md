@@ -45,14 +45,13 @@ curl -s -X POST localhost:8080/api/groups -H 'Content-Type: application/json' -d
 ```
 ```json
 {"id":1,"name":"Bandung weekend","currency":"USD","created_at":"2026-11-06T04:40:00Z",
- "participants":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"},{"id":3,"name":"Carol"}]}
+  "participants":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"},{"id":3,"name":"Carol"}]}
 ```
 
-**Get / list groups; add a participant:**
+**Get / list groups:**
 ```bash
 curl -s localhost:8080/api/groups/1
 curl -s localhost:8080/api/groups
-curl -s -X POST localhost:8080/api/groups/1/participants -H 'Content-Type: application/json' -d '{"name": "Dave"}'
 ```
 
 **Add expenses.** There are four split strategies. `split_type` defaults to `EQUAL`, and `category` defaults to `OTHER`.
@@ -123,7 +122,7 @@ curl -s localhost:8080/api/groups/1/settlement
   "calculated_at": "2026-11-06T04:41:00Z"
 }
 ```
-(The figures are illustrative: they assume the souvenirs expense was voided and a 7% service charge. Yours will reflect your own username.)
+(The figures are illustrative: they assume the souvenirs expense was voided and a 4% service charge. Yours will reflect your own username.)
 
 **Record payments.** Partial payments are fine, and the next settlement is recomputed from the updated balances:
 ```bash
@@ -144,6 +143,11 @@ curl -s localhost:8080/api/groups/1/summary/categories
   "..."]}
 ```
 
+**Add a participant later.** Dave joins after the trip. Existing expenses keep their resolved shares, so he only shares in expenses created from now on:
+```bash
+curl -s -X POST localhost:8080/api/groups/1/participants -H 'Content-Type: application/json' -d '{"name": "Dave"}'
+```
+
 ---
 
 ## Design notes
@@ -159,7 +163,7 @@ curl -s localhost:8080/api/groups/1/summary/categories
 - Derived values (the service charge and category percentages) use `HALF_EVEN` rounding.
 - Money is serialised as strings.
 
-**Balances and settlement are derived on every request, never stored.** `net = paid − share + payments_sent − payments_received`. Because nothing is cached, there is no stored balance that can drift out of sync with the ledger.
+**Balances and settlement are derived from the ledger, never persisted.** `net = paid − share + payments_sent − payments_received`. Because no balance is written to the database, there is nothing that can drift out of sync with the ledger. The Redis cache (below) only holds a copy of a derived result, and every write to the group clears it.
 
 **Settlement optimisation.** The minimum number of transfers is `n − k`, where `k` is the largest number of disjoint zero-sum subgroups the non-zero balances can be split into. That problem is NP-hard. For up to 16 non-zero balances, `SettlementCalculator` finds `k` exactly with a subset DP (2¹⁶ states, sub-millisecond). Each subgroup then settles with greedy largest-debtor → largest-creditor matching. Above 16 it falls back to greedy over the whole group, which never needs more than `n − 1` transfers.
 
@@ -180,6 +184,17 @@ I chose pessimistic over optimistic locking because writes to one group are rare
 **Audit trail.** Expenses and payments carry `created_at`, and expenses keep an optional `incurred_on` date. Expenses are voided rather than deleted, so `?include_voided=true` shows the full history. Timestamps come from an injected `Clock`.
 
 **Service charge.** It is reported for the group as a whole and is **not** added into the transfers. The brief defines it as a percentage of total expenses, but nobody in the group is the obvious recipient, so adding it to anyone's debt would make the settlement wrong.
+
+Key decisions and trade-offs
+
+1. Fewest transfers vs. paying back the person who paid. The hardest choice was how to settle debts. One option is to pay back exactly the person who paid for you. The other is to use the smallest possible number of transfers. I chose the fewest transfers because it is easier for the group. The trade-off is that you may end up paying someone who never paid for you, so the settlement response shows each person's full breakdown (paid, share, payments sent and received) to make it clear why.
+
+2. Leftover cents. Some amounts can't be split evenly, like 100.00 between three people. If everyone pays 33.33, one cent goes missing. I give the extra cent to the participant with the largest remainder, and on a tie to the earliest-listed participant (for an equal split, that's the first person in the list). That way the shares always add up to the full amount and the result is always the same. The trade-off is that one person pays one cent more than the others.
+
+3. H2 vs. PostgreSQL. PostgreSQL is better for real use, but I wanted a reviewer to be able to run the project with one command and no extra setup. I chose H2 as the default and kept PostgreSQL available through Docker Compose. The trade-off is that H2 doesn't behave exactly like PostgreSQL, so some database issues might not show up in the default setup.
+
+4. Service charge. The brief defines the service charge as a percentage of total expenses, but it doesn't say who pays it or who receives it. If I added it to someone's debt, the settlement would no longer add up. So it is reported separately in the settlement response and is not included in the transfers. The trade-off is that the group has to handle the service charge outside the transfer list.
+
 
 ### Testing
 

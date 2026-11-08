@@ -1,7 +1,6 @@
 app:
   # How long a cached settlement / category summary may live (writes evict immediately anyway).
   cache-ttl: ${CACHE_TTL:PT10M}
-
   github-username: idamsufiana
 
 spring:

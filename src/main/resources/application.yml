@@ -9,17 +9,17 @@ spring:
     name: settleup
   datasource:
     # LOCK_TIMEOUT: how long a write waits for another write's pessimistic lock on the same group.
-    url: jdbc:h2:mem:settleup;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=5000
+    url: jdbc:h2:file:./data/settleup;LOCK_TIMEOUT=5000
     username: sa
     password: ""
   h2:
     console:
-      # Browse the tables at http://localhost:8081/h2-console (JDBC URL: jdbc:h2:mem:settleup, user: sa)
+      # Browse the tables at http://localhost:8081/h2-console (JDBC URL: jdbc:h2:file:./data/settleup, user: sa)
       enabled: true
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
   cache:
     # Off by default so the app needs nothing else running. Set CACHE_TYPE=redis to enable.
     type: ${CACHE_TYPE:none}

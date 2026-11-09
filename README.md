@@ -4,7 +4,7 @@ A Spring Boot REST API for groups that share costs (a trip, a flat, a team lunch
 
 ## Build and run
 
-Requirements: Java 17+ and Maven 3.9+, or just Docker. Redis is used as a cache but isn't required (see below).
+Requirements: Java 17+ and Maven 3.9+, or just Docker.
 
 ## API
 

@@ -4,11 +4,11 @@ A Spring Boot REST API for groups that share costs (a trip, a flat, a team lunch
 
 ## Build and run
 
-Requirements: Java 17+ and Maven 3.9+, or just Docker. Redis is used as a cache but isn't required (see below).
+Requirements: Java 17+ and Maven 3.9+, or just Docker.
 
 ## API
 
-All bodies are JSON in `snake_case`. **Money is returned as JSON strings** (`"33.34"`) so that clients which parse JSON numbers as floats (JavaScript, for example) can't introduce rounding errors. Requests accept a string or a number.
+All bodies are JSON in `snake_case`. **Money is returned as JSON strings** (`"33.34"`) so that clients which parse JSON numbers as floats. Requests accept a string or a number.
 
 | Method | Path | Purpose |
 |---|---|---|

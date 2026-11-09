@@ -16,5 +16,8 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
     List<Expense> findByGroupIdAndVoidedAtIsNullOrderByIdAsc(Long groupId);
 
     @EntityGraph(attributePaths = {"paidBy", "shares", "shares.participant"})
+    List<Expense> findByGroupIdAndVoidedAtIsNotNullOrderByIdAsc(Long groupId);
+
+    @EntityGraph(attributePaths = {"paidBy", "shares", "shares.participant"})
     Optional<Expense> findByIdAndGroupId(Long id, Long groupId);
 }

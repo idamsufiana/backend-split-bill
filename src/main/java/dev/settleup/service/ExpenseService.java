@@ -73,7 +73,7 @@ public class ExpenseService {
     public List<Responses.Expense> list(Long groupId, ExpenseCategory category, boolean includeVoided) {
         groupService.load(groupId);
         List<Expense> found = includeVoided
-                ? expenses.findByGroupIdOrderByIdAsc(groupId)
+                ? expenses.findByGroupIdAndVoidedAtIsNotNullOrderByIdAsc(groupId)
                 : expenses.findByGroupIdAndVoidedAtIsNullOrderByIdAsc(groupId);
         return found.stream()
                 .filter(e -> category == null || e.getCategory() == category)

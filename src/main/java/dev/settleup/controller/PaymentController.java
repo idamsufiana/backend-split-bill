@@ -1,4 +1,4 @@
-package dev.settleup.web;
+package dev.settleup.controller;
 
 import dev.settleup.service.PaymentService;
 import dev.settleup.domain.dto.Requests;

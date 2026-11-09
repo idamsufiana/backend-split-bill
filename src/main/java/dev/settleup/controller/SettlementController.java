@@ -1,4 +1,4 @@
-package dev.settleup.web;
+package dev.settleup.controller;
 
 import dev.settleup.service.SettlementService;
 import dev.settleup.domain.dto.Responses;

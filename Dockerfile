@@ -1,23 +1,25 @@
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM maven:3.9-eclipse-temurin-17 AS builder
 
 WORKDIR /app
 
-# Copy Maven wrapper and pom first (layer cache for dependencies)
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
-RUN ./mvnw dependency:go-offline -q
+COPY pom.xml ./
+RUN mvn -B -q dependency:go-offline
 
-# Copy source and build
 COPY src/ src/
-RUN ./mvnw package -DskipTests -q
+RUN mvn -B -q package
 
-# ── Stage 2: Runtime ─────────────────────────────────────────────────────────
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:17-jre-alpine AS runtime
 
 WORKDIR /app
 
-COPY --from=builder /app/target/*.jar app.jar
+RUN addgroup -S app && adduser -S app -G app \
+    && mkdir -p /app/data && chown -R app:app /app
 
-EXPOSE 4110
+COPY --from=builder --chown=app:app /app/target/*.jar app.jar
+
+USER app
+
+ENV SERVER_PORT=8080
+EXPOSE 8080
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
